@@ -7,7 +7,13 @@ import (
 	"net/url"
 	"github.com/antonholmquist/jason"
 	"errors"
+	"encoding/json"
 )
+type CloudRecord struct {
+	objectId string `json:"objectId"`
+	Id string `json:"id"`
+	Addr string `json:"addr"`
+}
 func createCloudRecord(addr string, id string)(objId string, err error){
 	json := fmt.Sprintf(`{"id":"%s","addr":"%s"}`, id, addr)
 	resp, err := bmob.Post("user", json)
@@ -19,6 +25,29 @@ func createCloudRecord(addr string, id string)(objId string, err error){
 		return "", err
 	}
 	objId, err = obj.GetString("objectId")
+	return
+}
+func GetCloudRecord(id string)(rec CloudRecord, err error){
+	jsonstr := fmt.Sprintf(`{"id":"%s"}`, id)
+	obj, err := bmob.GET(fmt.Sprintf(`user?where=%s`, url.QueryEscape(jsonstr)))
+	if err != nil {
+		panic(err)
+	}
+
+	var results []*jason.Object
+	if results, err = obj.GetObjectArray("results"); err != nil {
+		panic(err)
+	}
+
+	if len(results) != 1 {
+		err=errors.New(fmt.Sprintf("results count: %d", len(results)))
+		return
+	}
+
+	err = json.Unmarshal([]byte(results[0].String()), &rec)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 func SyncNatToCloud(addr string, id string)(err error){
