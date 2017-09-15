@@ -45,6 +45,11 @@ type PackPing struct {
 type PackPone struct {
 }
 
+// 对方通知过来的错误
+type PackErr struct {
+	Message string
+}
+
 // 解包，返回结构
 func Parse(data []byte) (ret interface{}, err error) {
 	tmp_io := bytes.NewBuffer(data)
