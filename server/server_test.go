@@ -1,7 +1,7 @@
 package server_test
 
 import (
-	yyyp_server "github.com/shellus/untitled1/server"
+	yyyp_server "github.com/shellus/yyyp/server"
 	"testing"
 )
 

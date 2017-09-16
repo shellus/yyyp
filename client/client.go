@@ -2,8 +2,8 @@ package client
 
 import (
 	"log"
-	"github.com/shellus/untitled1/pack"
-	"github.com/shellus/untitled1/conn"
+	"github.com/shellus/yyyp/pack"
+	"github.com/shellus/yyyp/conn"
 	"errors"
 	"fmt"
 )

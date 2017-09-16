@@ -7,6 +7,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 )
 
 var PackMap = make(map[byte]reflect.Type)
@@ -16,6 +17,7 @@ const (
 	T_LINK
 	T_PING
 	T_PONE
+	T_CONNECT
 )
 
 func init() {
@@ -23,6 +25,16 @@ func init() {
 	PackMap[T_LINK] = reflect.TypeOf(PackLink{})
 	PackMap[T_PING] = reflect.TypeOf(PackPing{})
 	PackMap[T_PONE] = reflect.TypeOf(PackPone{})
+	PackMap[T_CONNECT] = reflect.TypeOf(PackConnect{})
+
+	gob.Register(PackReg{})
+	gob.Register(PackLink{})
+	gob.Register(PackPing{})
+	gob.Register(PackPone{})
+	gob.Register(PackConnect{})
+	//for _,v := range PackMap {
+	//	gob.Register(reflect.New(v))
+	//}
 }
 
 type PackReg struct {
@@ -40,9 +52,11 @@ type PackConnect struct {
 }
 
 type PackPing struct {
+	Expansion []byte
 }
 
 type PackPone struct {
+	Expansion []byte
 }
 
 // 对方通知过来的错误
@@ -53,23 +67,28 @@ type PackErr struct {
 // 解包，返回结构
 func Parse(data []byte) (ret interface{}, err error) {
 	tmp_io := bytes.NewBuffer(data)
-	var t byte
-	err = binary.Read(tmp_io, binary.BigEndian, t)
+	var k byte
+	err = binary.Read(tmp_io, binary.BigEndian, &k)
 	if err != nil {
 		return
 	}
 	dec := gob.NewDecoder(tmp_io)
 
-	packType, ok := PackMap[t]
+	bodyType, ok := PackMap[k]
 	if !ok {
-		err = errors.New(fmt.Sprintf("type [%v] not exist", t))
+		err = errors.New(fmt.Sprintf("type [%v] not exist", k))
 		return
 	}
 
-	err = dec.DecodeValue(reflect.New(packType))
+
+
+	retReflect := reflect.New(bodyType).Elem()
+	log.Printf("recv pack type [%s][%#v]", retReflect.String(), k)
+	err = dec.DecodeValue(retReflect)
 	if err != nil {
 		return
 	}
+	ret = retReflect.Addr().Interface()
 
 	return
 }
@@ -78,6 +97,7 @@ func Package(pack interface{})(data []byte, err error){
 	tmp_io := bytes.NewBuffer([]byte{})
 	for k, v := range PackMap{
 		if v == reflect.TypeOf(pack) {
+			log.Printf("send pack type [%s][%#v]", reflect.New(v).Elem().String(), k)
 			binary.Write(tmp_io, binary.BigEndian, k)
 			enc := gob.NewEncoder(tmp_io)
 			err = enc.Encode(pack)

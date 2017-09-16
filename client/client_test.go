@@ -2,7 +2,7 @@ package client_test
 
 import (
 	"testing"
-	yyyp_client "github.com/shellus/untitled1/client"
+	yyyp_client "github.com/shellus/yyyp/client"
 )
 
 func TestExample(t *testing.T) {
@@ -10,7 +10,7 @@ func TestExample(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	yclient.RequestLink("abc")
+	//yclient.RequestLink("abc")
 	err = yclient.Loop()
 	t.Error(err)
 }
