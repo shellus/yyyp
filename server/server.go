@@ -76,10 +76,11 @@ func (t *YServer) handleConn(yclient *p2p_client.P2PClient) {
 
 
 		switch recvPack := recvPackInterface.(type) {
-		case pack.PackReg:
+
+		case *pack.PackReg:
 			t.regNodes[recvPack.Name] = yclient
 			log.Printf("receive reg : [%s] [%s]", remoteAddr, recvPack.Name)
-		case pack.PackLink:
+		case *pack.PackLink:
 			remoteConn := t.regNodes[recvPack.Name]
 
 			{

@@ -78,28 +78,27 @@ func (t *P2PClient) ReadPack() (ret interface{}, err error) {
 	}
 }
 
-func (t *P2PClient) Run() error {
+func (t *P2PClient) RunClient() error {
 
 	for {
-		select {
-		case recvPackInterface := <-t.waitPackChan:
-			switch recvPack := recvPackInterface.(type) {
+		recvPackInterface, err := t.ReadPack()
+		if err != nil {
+			return err
+		}
+		switch recvPack := recvPackInterface.(type) {
 
-			case pack.PackPing:
-				log.Printf("receive ping : [%s]", t.YConn.NetConn.RemoteAddr())
+		case *pack.PackPing:
+			log.Printf("receive ping : [%s]", t.YConn.NetConn.RemoteAddr())
 
-			case pack.PackPone:
-				t.poneChan <- time.Now()
-				log.Printf("receive pone : [%s]", t.YConn.NetConn.RemoteAddr())
+		case *pack.PackPone:
+			t.poneChan <- time.Now()
+			log.Printf("receive pone : [%s]", t.YConn.NetConn.RemoteAddr())
 
-			case pack.PackConnect:
-				log.Printf("receive connect command, target : [%s]", recvPack.RemoteAddr)
+		case *pack.PackConnect:
+			log.Printf("receive connect command, target : [%s]", recvPack.RemoteAddr)
 
-			case pack.PackErr:
-				log.Printf("receive error : [%s]", recvPack.Message)
-			}
-		case <-t.timeoutCloseChan:
-			return errors.New(fmt.Sprintf("connect timeout"))
+		case *pack.PackErr:
+			log.Printf("receive error : [%s]", recvPack.Message)
 		}
 	}
 }

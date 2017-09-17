@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-var isDebug bool = true
+var isDebug bool = false
 var index int
 var std = log.New(os.Stderr, "", log.LstdFlags)
 

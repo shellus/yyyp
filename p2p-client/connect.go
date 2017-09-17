@@ -8,6 +8,10 @@ import (
 )
 
 func (t *P2PClient) waitPackLoop() {
+
+	// 注意，这个函数只有连接中断的情况下才能return
+	// 所以，如果return，一定是后续触发Close的。
+
 	for {
 		body, err := t.YConn.ReadMessage()
 		if err != nil {
@@ -29,17 +33,14 @@ func (t *P2PClient) waitPackLoop() {
 		case *pack.PackPing:
 			t.pingChan <- time.Now()
 			t.WritePack(pack.PackPone{})
-			return
 		case *pack.PackPone:
 			t.poneChan <- time.Now()
-			return
 		case *pack.PackErr:
 			err = errors.New(fmt.Sprintf("remote reply a err message: [%s]", recvPack.Message))
 			t.errQuitChan <- err
 			return
 		default:
 			t.waitPackChan <- recvPack
-			return
 		}
 	}
 }
