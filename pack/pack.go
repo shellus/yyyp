@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 )
 
 var PackMap = make(map[byte]reflect.Type)
@@ -18,6 +17,8 @@ const (
 	T_PING
 	T_PONE
 	T_CONNECT
+	T_NODECONNECT
+	T_NODECONNECT_DONE
 )
 
 func init() {
@@ -26,12 +27,9 @@ func init() {
 	PackMap[T_PING] = reflect.TypeOf(PackPing{})
 	PackMap[T_PONE] = reflect.TypeOf(PackPone{})
 	PackMap[T_CONNECT] = reflect.TypeOf(PackConnect{})
+	PackMap[T_NODECONNECT] = reflect.TypeOf(PackNodeConnect{})
+	PackMap[T_NODECONNECT_DONE] = reflect.TypeOf(PackNodeConnectDone{})
 
-	gob.Register(PackReg{})
-	gob.Register(PackLink{})
-	gob.Register(PackPing{})
-	gob.Register(PackPone{})
-	gob.Register(PackConnect{})
 	//for _,v := range PackMap {
 	//	gob.Register(reflect.New(v))
 	//}
@@ -50,7 +48,12 @@ type PackLink struct {
 type PackConnect struct {
 	RemoteAddr       string
 }
-
+type PackNodeConnect struct {
+	Expansion []byte
+}
+type PackNodeConnectDone struct {
+	Expansion []byte
+}
 type PackPing struct {
 	Expansion []byte
 }
@@ -83,7 +86,6 @@ func Parse(data []byte) (ret interface{}, err error) {
 
 
 	retReflect := reflect.New(bodyType).Elem()
-	log.Printf("recv pack type [%s][%#v]", retReflect.String(), k)
 	err = dec.DecodeValue(retReflect)
 	if err != nil {
 		return
@@ -97,7 +99,6 @@ func Package(pack interface{})(data []byte, err error){
 	tmp_io := bytes.NewBuffer([]byte{})
 	for k, v := range PackMap{
 		if v == reflect.TypeOf(pack) {
-			log.Printf("send pack type [%s][%#v]", reflect.New(v).Elem().String(), k)
 			binary.Write(tmp_io, binary.BigEndian, k)
 			enc := gob.NewEncoder(tmp_io)
 			err = enc.Encode(pack)

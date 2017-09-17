@@ -4,15 +4,15 @@ import (
 	"log"
 	"github.com/shellus/yyyp/pack"
 	"github.com/shellus/yyyp/conn"
+	"github.com/shellus/yyyp/p2p-client"
 )
 
 type YServer struct {
 	yListener *conn.YListener
-	connChan  chan *conn.YConn
+	connChan  chan *p2p_client.P2PClient
 	quitChan  chan bool
-	nodes map[string]*conn.YConn
+	regNodes  map[string]*p2p_client.P2PClient
 }
-
 var listerAddr = ":8888"
 
 func New() (yserver *YServer, err error) {
@@ -22,9 +22,17 @@ func New() (yserver *YServer, err error) {
 		log.Panicf("server listen err [%s] [%s]", listerAddr, err)
 		return
 	}
-	yserver = &YServer{yListener: yListener}
+	yserver = &YServer{
+		yListener: yListener,
+		connChan: make(chan *p2p_client.P2PClient),
+		quitChan: make(chan bool),
+	}
 	return
 }
+func (t *YServer) Close() {
+	t.quitChan <- true
+}
+
 func (t *YServer) Loop() {
 	go func() {
 		for {
@@ -33,7 +41,12 @@ func (t *YServer) Loop() {
 				log.Printf("server accept err : [%s]", err)
 				continue
 			}
-			t.connChan <- conn2
+			yc,err := p2p_client.NewClientWithYConn(conn2)
+			if err != nil {
+				log.Printf("server new client err : [%s]", err)
+				continue
+			}
+			t.connChan <- yc
 		}
 	}()
 
@@ -49,49 +62,39 @@ func (t *YServer) Loop() {
 	log.Printf("server accept quitChan")
 }
 
-func (t *YServer) Stop() {
-	t.quitChan <- true
-}
 
-func (t *YServer) handleConn(conn *conn.YConn) {
+func (t *YServer) handleConn(yclient *p2p_client.P2PClient) {
 
-	defer conn.Close()
-
+	defer yclient.Close()
+	remoteAddr := yclient.YConn.NetConn.RemoteAddr()
 	for {
-		recvPackInterface, err := conn.WaitPack()
+		recvPackInterface, err := yclient.ReadPack()
 		if err != nil {
-			log.Printf("wait pack err : [%s] [%s]", conn.NetConn.RemoteAddr(), err)
+			log.Printf("wait pack err : [%s] [%s]", remoteAddr, err)
 			return
 		}
+
+
 		switch recvPack := recvPackInterface.(type) {
-
 		case pack.PackReg:
-			t.nodes[recvPack.Name] = conn
-			log.Printf("receive reg : [%s] [%s]", conn.NetConn.RemoteAddr(), recvPack.Name)
-		case pack.PackPing:
-			// todo write pone pack
-			log.Printf("receive ping : [%s]", conn.NetConn.RemoteAddr())
-
-		case pack.PackPone:
-			log.Printf("receive pone : [%s]", conn.NetConn.RemoteAddr())
-
+			t.regNodes[recvPack.Name] = yclient
+			log.Printf("receive reg : [%s] [%s]", remoteAddr, recvPack.Name)
 		case pack.PackLink:
-			remoteConn := t.nodes[recvPack.Name]
+			remoteConn := t.regNodes[recvPack.Name]
 
 			{
 				// 回复给他目标的地址
-				err := conn.WriteMessage(pack.PackConnect{RemoteAddr: remoteConn.NetConn.RemoteAddr().String()})
+				err := yclient.WritePack(pack.PackConnect{RemoteAddr: remoteConn.YConn.NetConn.RemoteAddr().String()})
 				log.Printf("send message err : [%s]", err)
 			}
 
 			{
 				// 告诉目标
-				err := conn.WriteMessage(pack.PackConnect{RemoteAddr: conn.NetConn.RemoteAddr().String()})
+				err := yclient.WritePack(pack.PackConnect{RemoteAddr: remoteAddr.String()})
 				log.Printf("send message err : [%s]", err)
 			}
-		case pack.PackErr:
-			log.Printf("receive error : [%s]", recvPack.Message)
 		}
 	}
 
 }
+
